@@ -7,6 +7,9 @@ import (
 	"strings"
 )
 
+// 使用第三方Mux
+var router = mux.NewRouter()
+
 func homeHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "<h1>Hello, 欢迎来到goblog!<h1>")
 }
@@ -55,9 +58,27 @@ func removeTrailingSlash(next http.Handler) http.Handler {
 	})
 }
 
+func articlesCreateHandler(w http.ResponseWriter, r *http.Request) {
+	html := `
+			<!DOCTYPE html>
+			<html lang="en">
+			<head>
+				<title>创建文章 —— 我的技术博客</title>
+			</head>
+			<body>
+				<form action="%s" method="post">
+					<p><input type="text" name="title"></p>
+					<p><textarea name="body" cols="30" rows="10"></textarea></p>
+					<p><button type="submit">提交</button></p>
+				</form>
+			</body>
+			</html>
+			`
+	storeURL, _ := router.Get("articles.store").URL()
+	fmt.Fprintf(w, html, storeURL)
+}
+
 func main() {
-	// 使用第三方Mux
-	router := mux.NewRouter()
 
 	router.HandleFunc("/", homeHandler).Methods("GET").Name("home")
 	router.HandleFunc("/about", aboutHandler).Methods("GET").Name("about")
@@ -66,20 +87,17 @@ func main() {
 		articlesShowHandler).Methods("GET").Name("articles.show")
 	router.HandleFunc("/articles",
 		articlesIndexHandler).Methods("GET").Name("articles.index")
-	router.HandleFunc("/articles/{id:[0-9]+}",
+	router.HandleFunc("/articles",
 		articlesStoreHandler).Methods("POST").Name("articles.store")
+
+	router.HandleFunc("/articles/create",
+		articlesCreateHandler).Methods("GET").Name("articles.create")
 
 	// 自定义404页面
 	router.NotFoundHandler = http.HandlerFunc(notFoundHandler)
 
 	// 中间件：强制内容类型为HTML
 	router.Use(forceHTMLMiddleware)
-
-	// 通过命令路由获取URL示例
-	homeURL, _ := router.Get("home").URL()
-	fmt.Println("homeURL:", homeURL)
-	articleURL, _ := router.Get("articles.show").URL("id", "23")
-	fmt.Println("articleURL:", articleURL)
 
 	http.ListenAndServe(":3000", removeTrailingSlash(router))
 }
